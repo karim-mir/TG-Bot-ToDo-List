@@ -1,4 +1,3 @@
-from Homework_1.src.categorize_transactions import categories
 from django.contrib import admin
 from django.utils.html import format_html
 from .models import Task, Category
