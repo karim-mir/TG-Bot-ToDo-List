@@ -398,6 +398,32 @@ argon2 = ["argon2-cffi (>=23.1.0)"]
 bcrypt = ["bcrypt (>=4.1.1)"]
 
 [[package]]
+name = "django-restframework"
+version = "0.0.1"
+description = "django-restframework"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "django-restframework-0.0.1.tar.gz", hash = "sha256:2bec9265463693ada558ad9a58c31f6f3de005a932fbfeaadf983c5c9f3b7058"},
+]
+
+[[package]]
+name = "djangorestframework"
+version = "3.16.1"
+description = "Web APIs for Django, made easy."
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "djangorestframework-3.16.1-py3-none-any.whl", hash = "sha256:33a59f47fb9c85ede792cbf88bde71893bcda0667bc573f784649521f1102cec"},
+    {file = "djangorestframework-3.16.1.tar.gz", hash = "sha256:166809528b1aced0a17dc66c24492af18049f2c9420dbd0be29422029cfc3ff7"},
+]
+
+[package.dependencies]
+django = ">=4.2"
+
+[[package]]
 name = "dotenv"
 version = "0.9.9"
 description = "Deprecated package"
@@ -1498,4 +1524,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12, <3.15"
-content-hash = "3672dfa0f36d230268d10317f10acb9a3ad09c9b37f0b84d55763c73c9f6fc03"
+content-hash = "748b88c1526f10a1bd1fa694e78f816345ccaacde6e02831899c6a6a1abbd46f"
