@@ -1,53 +1,71 @@
-from wsgiref.simple_server import server_version
-
-from rest_framework import viewsets, permissions, status
-from rest_framework import filters
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django_filters.rest_framework import DjangoFilterBackend
-from .models import Task, Category
-from .serializers import TaskSerializer, TaskListSerializer, TaskCreateSerializer, CategorySerializer
+
+from .models import Category, Task
+from .serializers import (CategorySerializer, TaskCreateSerializer,
+                          TaskListSerializer, TaskSerializer)
+
 
 class CategoryViewSet(viewsets.ModelViewSet):
     """ViewSet для работы с категориями"""
+
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # Изменено: разрешаем доступ всем
     filter_backends = [filters.SearchFilter]
     search_fields = ["name"]
 
     def get_queryset(self):
-        """Пользователи могут видеть только свои категории"""
+        """Получаем категории, фильтруем по user_id если передан"""
         queryset = super().get_queryset()
 
-        if self.request.user.is_staff:
-            return queryset
-        return queryset.filter(user=self.request.user)
+        # Получаем user_id из query parameters
+        user_id = self.request.query_params.get("user_id")
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+
+        # Если передан заголовок авторизации или пользователь аутентифицирован
+        if self.request.user and self.request.user.is_authenticated:
+            if self.request.user.is_staff:
+                return queryset
+            return queryset.filter(user=self.request.user)
+
+        return queryset  # Для неаутентифицированных возвращаем все
 
     def perform_create(self, serializer):
-        """Автоматически назначает текущего пользователя"""
-        serializer.save(user=self.request.user)
+        """Просто сохраняем категорию с данными из запроса"""
+        serializer.save()
 
     @action(detail=True, methods=["get"])
     def tasks(self, request, pk=None):
-        """Получает все задачи категории"""
+        """Получаем все задачи категории"""
         category = self.get_object()
         tasks = category.task_set.all()
 
-        if not request.user.is_staff:
+        # Фильтруем по user_id если передан
+        user_id = request.query_params.get("user_id")
+        if user_id:
+            tasks = tasks.filter(user_id=user_id)
+
+        # Если пользователь аутентифицирован и не staff, фильтруем по нему
+        if request.user.is_authenticated and not request.user.is_staff:
             tasks = tasks.filter(user=request.user)
+
         serializer = TaskSerializer(tasks, many=True, context={"request": request})
         return Response(serializer.data)
 
 
 class TaskViewSet(viewsets.ModelViewSet):
     """ViewSet для работы с задачами"""
+
     queryset = Task.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # Изменено: разрешаем доступ всем
     filter_backends = [
         DjangoFilterBackend,
         filters.SearchFilter,
-        filters.OrderingFilter
+        filters.OrderingFilter,
     ]
     filterset_fields = ["completed", "categories", "user"]
     search_fields = ["title", "description"]
@@ -63,16 +81,36 @@ class TaskViewSet(viewsets.ModelViewSet):
         return TaskSerializer
 
     def get_queryset(self):
-        """Пользователи могут видеть только свои задачи"""
+        """Получаем задачи, фильтруем по user_id если передан"""
         queryset = super().get_queryset()
 
-        if self.request.user.is_staff:
-            return queryset
-        return queryset.filter(user=self.request.user)
+        # Получаем user_id из query parameters
+        user_id = self.request.query_params.get("user_id")
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+
+        # Если передан заголовок авторизации или пользователь аутентифицирован
+        if self.request.user and self.request.user.is_authenticated:
+            if self.request.user.is_staff:
+                return queryset
+            return queryset.filter(user=self.request.user)
+
+        return queryset  # Для неаутентифицированных возвращаем все
 
     def perform_create(self, serializer):
-        """Автоматически назначает текущего пользователя"""
-        serializer.save(user=self.request.user)
+        """Создаем задачу, используя user_id из запроса или текущего пользователя"""
+        # Получаем user_id из данных запроса
+        user_id = self.request.data.get("user_id")
+
+        if self.request.user and self.request.user.is_authenticated:
+            # Если пользователь аутентифицирован, используем его
+            serializer.save(user=self.request.user)
+        elif user_id:
+            # Если передан user_id, используем его
+            serializer.save(user_id=user_id)
+        else:
+            # Иначе сохраняем без пользователя
+            serializer.save()
 
     @action(detail=True, methods=["post"])
     def complete(self, request, pk=None):
