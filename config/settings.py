@@ -12,7 +12,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-test-key-for-development")
 
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -57,13 +57,42 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
+
+def is_running_in_docker():
+    """Определяем, запущен ли код в Docker контейнере"""
+    try:
+        # Проверяем, существует ли файл .dockerenv
+        return os.path.exists('/.dockerenv')
+    except:
+        return False
+
+def get_db_host():
+    """Динамически определяем DB_HOST в зависимости от окружения"""
+    if is_running_in_docker():
+        # Если в Docker - используем имя сервиса из docker-compose
+        return 'db'
+    else:
+        # Если локально - используем localhost
+        return os.getenv('DB_HOST', 'localhost')
+
+def get_redis_url():
+    """Динамически определяем Redis URL"""
+    if is_running_in_docker():
+        return 'redis://redis:6379/0'
+    else:
+        redis_host = os.getenv('REDIS_HOST', 'localhost')
+        redis_port = os.getenv('REDIS_PORT', '6379')
+        return f'redis://{redis_host}:{redis_port}/0'
+
+# DB settings
+
 DATABASES = {
     "default": {
         "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql"),
-        "NAME": os.getenv("DB_NAME", "test_db"),
+        "NAME": os.getenv("DB_NAME", "TG_Bot_ToDo_List"),
         "USER": os.getenv("DB_USER", "postgres"),
-        "PASSWORD": os.getenv("DB_PASSWORD", "postgres"),
-        "HOST": os.getenv("DB_HOST", "localhost"),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
+        "HOST": get_db_host(),  # Используем динамическое определение
         "PORT": os.getenv("DB_PORT", "5432"),
     }
 }
@@ -103,6 +132,7 @@ SWAGGER_SETTINGS = {
     "USE_SESSION_AUTH": False,
 }
 
+
 LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "America/Adak"
@@ -111,12 +141,16 @@ USE_I18N = True
 
 USE_TZ = True
 
+# Static files
+
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-CELERY_TIMEZONE = "UTC"
+# CELERY settings
+
+CELERY_BROKER_URL = get_redis_url()
+CELERY_RESULT_BACKEND = get_redis_url()
+CELERY_TIMEZONE = "America/Adak"
 
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
@@ -137,9 +171,7 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-
 if DEBUG:
-
     INSTALLED_APPS.append("corsheaders")
     MIDDLEWARE.insert(2, "corsheaders.middleware.CorsMiddleware")
     CORS_ALLOW_ALL_ORIGINS = True
@@ -161,3 +193,14 @@ if DEBUG:
             "level": "INFO",
         },
     }
+
+# TG settings
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+
+print(f"\n{'='*50}")
+print(f"🚀 Django запущен в окружении: {'Docker' if is_running_in_docker() else 'Local'}")
+print(f"📊 DB_HOST: {get_db_host()}")
+print(f"🔗 Redis URL: {get_redis_url()}")
+print(f"🌐 Telegram Bot Token: {'Установлен' if TELEGRAM_BOT_TOKEN else 'НЕ установлен!'}")
+print(f"{'='*50}\n")
